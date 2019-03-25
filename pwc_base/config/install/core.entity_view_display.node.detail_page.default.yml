@@ -1,0 +1,81 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.node.detail_page.field_author
+    - field.field.node.detail_page.field_body_components
+    - field.field.node.detail_page.field_display_date
+    - field.field.node.detail_page.field_email_share_body
+    - field.field.node.detail_page.field_email_share_subject
+    - field.field.node.detail_page.field_enable_email_share
+    - field.field.node.detail_page.field_enable_linkedin_share
+    - field.field.node.detail_page.field_enable_twitter_share
+    - field.field.node.detail_page.field_landing_page
+    - field.field.node.detail_page.field_linkedin_share_summary
+    - field.field.node.detail_page.field_linkedin_share_title
+    - field.field.node.detail_page.field_linkedin_share_url
+    - field.field.node.detail_page.field_read_more_link
+    - field.field.node.detail_page.field_short_description
+    - field.field.node.detail_page.field_thumbnail_image
+    - field.field.node.detail_page.field_twitter_share_tweet_text
+    - node.type.detail_page
+  module:
+    - datetime
+    - entity_reference_revisions
+    - user
+id: node.detail_page.default
+targetEntityType: node
+bundle: detail_page
+mode: default
+content:
+  field_author:
+    type: entity_reference_label
+    weight: 0
+    region: content
+    label: hidden
+    settings:
+      link: true
+    third_party_settings: {  }
+  field_body_components:
+    type: entity_reference_revisions_entity_view
+    weight: 2
+    region: content
+    label: hidden
+    settings:
+      view_mode: default
+      link: ''
+    third_party_settings: {  }
+  field_display_date:
+    type: datetime_default
+    weight: 1
+    region: content
+    label: hidden
+    settings:
+      timezone_override: ''
+      format_type: detail_page_header
+    third_party_settings: {  }
+  flag_save_for_later:
+    weight: 3
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  pwc_share:
+    weight: 4
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+hidden:
+  field_email_share_body: true
+  field_email_share_subject: true
+  field_enable_email_share: true
+  field_enable_linkedin_share: true
+  field_enable_twitter_share: true
+  field_landing_page: true
+  field_linkedin_share_summary: true
+  field_linkedin_share_title: true
+  field_linkedin_share_url: true
+  field_read_more_link: true
+  field_short_description: true
+  field_thumbnail_image: true
+  field_twitter_share_tweet_text: true
+  links: true

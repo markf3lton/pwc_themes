@@ -1,0 +1,73 @@
+plugin: add
+path: ["content"]
+actions:
+  field_landing_page:
+    value:
+      field_landing_page:
+        weight: 1
+        settings:
+          match_operator: CONTAINS
+          size: 60
+          placeholder: ''
+        third_party_settings: {  }
+        type: entity_reference_autocomplete
+        region: content
+    actions:
+      detail_page:
+        source: "core.entity_form_display.node.detail_page.default"
+      event:
+        source: "core.entity_form_display.node.event.default"
+      landing_page:
+        source: "core.entity_form_display.node.landing_page.default"
+      person:
+        source: "core.entity_form_display.node.person.default"
+  field_tags:
+    value:
+      field_tags:
+        weight: '@weight@'
+        settings: {  }
+        third_party_settings: {  }
+        type: options_select
+        region: content
+    actions:
+      detail_page:
+        replace:
+          "@weight@": 10
+        source: "core.entity_form_display.node.detail_page.default"
+      event:
+        replace:
+          "@weight@": 11
+        source: "core.entity_form_display.node.event.default"
+      landing_page:
+        replace:
+          "@weight@": 9
+        source: "core.entity_form_display.node.landing_page.default"
+      person:
+        replace:
+          "@weight@": 16
+        source: "core.entity_form_display.node.person.default"
+  field_display_date:
+    value:
+      field_display_date:
+        weight: "@weight@"
+        settings: {  }
+        third_party_settings: {  }
+        type: datetime_default
+        region: content
+    actions:
+      detail_page:
+        replace:
+          "@weight@": 2
+        source: "core.entity_form_display.node.detail_page.default"
+      event:
+        replace:
+          "@weight@": 1
+        source: "core.entity_form_display.node.event.default"
+      landing_page:
+        replace:
+          "@weight@": 2
+        source: "core.entity_form_display.node.landing_page.default"
+      person:
+        replace:
+          "@weight@": 2
+        source: "core.entity_form_display.node.person.default"

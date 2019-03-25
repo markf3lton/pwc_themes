@@ -1,0 +1,11 @@
+nid_list: []
+translation_sync: true
+search: false
+content_types:
+  detail_page: none
+  event: none
+  landing_page: user
+  person: none
+content_type_modes:
+  landing_page:
+    - full

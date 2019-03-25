@@ -1,0 +1,55 @@
+plugin: add
+path: ["dependencies", "config"]
+value: 
+  - "field.field.node.@bundle@.field_landing_page"
+  - "field.field.node.@bundle@.field_tags"
+  - "field.field.node.@bundle@.field_display_date"
+actions:
+  detail_page:
+    replace:
+      "@bundle@": detail_page
+    source: "core.entity_form_display.node.detail_page.default"
+  event:
+    replace:
+      "@bundle@": event
+    source: "core.entity_form_display.node.event.default"
+  landing_page:
+    replace:
+      "@bundle@": landing_page
+    source: "core.entity_form_display.node.landing_page.default"
+  person:
+    replace:
+      "@bundle@": person
+    source: "core.entity_form_display.node.person.default"
+  detail_page_card:
+    replace:
+      "@bundle@": detail_page
+    source: "core.entity_view_display.node.detail_page.card"
+  detail_page_teaser:
+    replace:
+      "@bundle@": detail_page
+    source: "core.entity_view_display.node.detail_page.teaser"
+  event_card:
+    replace:
+      "@bundle@": event
+    source: "core.entity_view_display.node.event.card"
+  event_teaser:
+    replace:
+      "@bundle@": event
+    source: "core.entity_view_display.node.event.teaser"
+  landing_page_teaser:
+    replace:
+      "@bundle@": landing_page
+    source: "core.entity_view_display.node.landing_page.teaser"
+  person_card:
+    replace:
+      "@bundle@": person
+    source: "core.entity_view_display.node.person.card"
+  person_landscape_card:
+    replace:
+      "@bundle@": person
+    source: "core.entity_view_display.node.person.landscape_card"
+  person_portrait_card:
+    replace:
+      "@bundle@": person
+    source: "core.entity_view_display.node.person.portrait_card"

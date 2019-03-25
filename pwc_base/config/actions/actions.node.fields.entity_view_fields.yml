@@ -1,0 +1,47 @@
+plugin: add
+path: ["content"]
+actions:
+  field_dispaly_date:
+    value:
+      field_display_date:
+        type: datetime_default
+        weight: "@weight@"
+        region: content
+        label: hidden
+        settings:
+          timezone_override: ''
+          format_type: detail_page_header
+        third_party_settings: {  }
+    actions:
+      detail_page_card:
+        replace:
+          "@weight@": 1
+        source: "core.entity_view_display.node.detail_page.card"
+      detail_page_teaser:
+        replace:
+          "@weight@": 1
+        source: "core.entity_view_display.node.detail_page.teaser"
+      event_card:
+        replace:
+          "@weight@": 1
+        source: "core.entity_view_display.node.event.card"
+      event_teaser:
+        replace:
+          "@weight@": 1
+        source: "core.entity_view_display.node.event.teaser"
+      landing_page_teaser:
+        replace:
+          "@weight@": 2
+        source: "core.entity_view_display.node.landing_page.teaser"
+      person_card:
+        replace:
+          "@weight@": 9
+        source: "core.entity_view_display.node.person.card"
+      person_landscape_card:
+        replace:
+          "@weight@": 8
+        source: "core.entity_view_display.node.person.landscape_card"
+      person_portrait_card:
+        replace:
+          "@weight@": 8
+        source: "core.entity_view_display.node.person.portrait_card"

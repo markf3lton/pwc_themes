@@ -1,0 +1,61 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - core.entity_view_mode.node.entity_browser_preview
+    - field.field.node.person.field_display_options
+    - field.field.node.person.field_name
+    - field.field.node.person.field_p_read_more_link
+    - field.field.node.person.field_person_components
+    - field.field.node.person.field_person_email
+    - field.field.node.person.field_person_linkedin_url
+    - field.field.node.person.field_person_phone
+    - field.field.node.person.field_person_title
+    - field.field.node.person.field_person_twitter_url
+    - field.field.node.person.field_profile_photo
+    - image.style.thumbnail
+    - node.type.person
+  module:
+    - image
+    - name
+    - user
+id: node.person.entity_browser_preview
+targetEntityType: node
+bundle: person
+mode: entity_browser_preview
+content:
+  field_name:
+    weight: 1
+    label: above
+    settings:
+      format: default
+      markup: false
+      output: default
+      multiple: default
+      multiple_delimiter: ', '
+      multiple_and: text
+      multiple_delimiter_precedes_last: never
+      multiple_el_al_min: '3'
+      multiple_el_al_first: '1'
+    third_party_settings: {  }
+    type: name_default
+    region: content
+  field_profile_photo:
+    type: image
+    weight: 0
+    label: inline
+    settings:
+      image_style: thumbnail
+      image_link: ''
+    third_party_settings: {  }
+    region: content
+hidden:
+  field_display_options: true
+  field_p_read_more_link: true
+  field_person_components: true
+  field_person_email: true
+  field_person_linkedin_url: true
+  field_person_phone: true
+  field_person_title: true
+  field_person_twitter_url: true
+  links: true

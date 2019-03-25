@@ -1,0 +1,21 @@
+plugin: add
+path: ["dependencies", "module"]
+value:
+  - "datetime"
+actions:
+  detail_page_card:
+    source: "core.entity_view_display.node.detail_page.card"
+  detail_page_teaser:
+    source: "core.entity_view_display.node.detail_page.teaser"
+  event_card:
+    source: "core.entity_view_display.node.event.card"
+  event_teaser:
+    source: "core.entity_view_display.node.event.teaser"
+  landing_page_teaser:
+    source: "core.entity_view_display.node.landing_page.teaser"
+  person_card:
+    source: "core.entity_view_display.node.person.card"
+  person_landscape_card:
+    source: "core.entity_view_display.node.person.landscape_card"
+  person_portrait_card:
+    source: "core.entity_view_display.node.person.portrait_card"

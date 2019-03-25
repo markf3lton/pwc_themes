@@ -1,0 +1,4 @@
+roleassign_roles:
+  site_builder: site_builder
+  platform_administrator: platform_administrator
+  content_editor: content_editor

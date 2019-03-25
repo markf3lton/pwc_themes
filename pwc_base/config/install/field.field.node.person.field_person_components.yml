@@ -1,0 +1,106 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_person_components
+    - node.type.person
+    - paragraphs.paragraphs_type.background_breaker_center
+    - paragraphs.paragraphs_type.background_image_breaker
+    - paragraphs.paragraphs_type.contact_us
+    - paragraphs.paragraphs_type.content_list
+    - paragraphs.paragraphs_type.image_slider
+    - paragraphs.paragraphs_type.multiple_person
+    - paragraphs.paragraphs_type.narrow_background_breaker
+    - paragraphs.paragraphs_type.narrow_image_slider
+    - paragraphs.paragraphs_type.one_column
+    - paragraphs.paragraphs_type.referenced_detail_content
+    - paragraphs.paragraphs_type.related_detail_content
+    - paragraphs.paragraphs_type.three_column
+    - paragraphs.paragraphs_type.twitter_feed
+    - paragraphs.paragraphs_type.two_column
+    - paragraphs.paragraphs_type.webform
+  module:
+    - entity_reference_revisions
+id: node.person.field_person_components
+field_name: field_person_components
+entity_type: node
+bundle: person
+label: 'Body Components'
+description: 'Select a component to add formatted content to main body of the page.'
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings:
+  handler: 'default:paragraph'
+  handler_settings:
+    negate: 0
+    target_bundles:
+      background_image_breaker: background_image_breaker
+      narrow_background_breaker: narrow_background_breaker
+      one_column: one_column
+      two_column: two_column
+      three_column: three_column
+      referenced_detail_content: referenced_detail_content
+      related_detail_content: related_detail_content
+      content_list: content_list
+      multiple_person: multiple_person
+      image_slider: image_slider
+      twitter_feed: twitter_feed
+      contact_us: contact_us
+      webform: webform
+      background_breaker_center: background_breaker_center
+      narrow_image_slider: narrow_image_slider
+    target_bundles_drag_drop:
+      background_image_breaker:
+        enabled: true
+        weight: -33
+      narrow_background_breaker:
+        enabled: true
+        weight: -32
+      one_column:
+        enabled: true
+        weight: -31
+      two_column:
+        enabled: true
+        weight: -30
+      three_column:
+        enabled: true
+        weight: -29
+      referenced_detail_content:
+        enabled: true
+        weight: -28
+      related_detail_content:
+        enabled: true
+        weight: -27
+      content_list:
+        enabled: true
+        weight: -26
+      multiple_person:
+        enabled: true
+        weight: -25
+      image_slider:
+        enabled: true
+        weight: -24
+      twitter_feed:
+        enabled: true
+        weight: -23
+      contact_us:
+        enabled: true
+        weight: -22
+      webform:
+        enabled: true
+        weight: -21
+      banner:
+        weight: -20
+        enabled: false
+      background_breaker_center:
+        enabled: true
+        weight: -19
+      upcoming_events:
+        weight: -18
+        enabled: false
+      narrow_image_slider:
+        enabled: true
+        weight: 18
+field_type: entity_reference_revisions

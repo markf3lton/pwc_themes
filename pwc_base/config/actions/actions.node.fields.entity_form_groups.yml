@@ -1,0 +1,35 @@
+plugin: add
+path: ["third_party_settings", "field_group"]
+actions:
+  group_taxonomy:
+    value:
+      group_taxonomy:
+        children:
+          - field_tags
+        parent_name: ''
+        weight: '@weight@'
+        format_type: tab
+        format_settings:
+          id: ''
+          classes: ''
+          formatter: closed
+          description: ''
+          required_fields: true
+        label: Taxonomy
+    actions:
+      detail_page:
+        replace:
+          "@weight@": 20
+        source: "core.entity_form_display.node.detail_page.default"
+      event:
+        replace:
+          "@weight@": 8
+        source: "core.entity_form_display.node.event.default"
+      landing_page:
+        replace:
+          "@weight@": 8
+        source: "core.entity_form_display.node.landing_page.default"
+      person:
+        replace:
+          "@weight@": 13
+        source: "core.entity_form_display.node.person.default"

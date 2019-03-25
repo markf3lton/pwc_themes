@@ -1,0 +1,125 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.field.node.person.field_display_options
+    - field.field.node.person.field_name
+    - field.field.node.person.field_p_read_more_link
+    - field.field.node.person.field_person_components
+    - field.field.node.person.field_person_email
+    - field.field.node.person.field_person_linkedin_url
+    - field.field.node.person.field_person_phone
+    - field.field.node.person.field_person_title
+    - field.field.node.person.field_person_twitter_url
+    - field.field.node.person.field_profile_photo
+    - node.type.person
+    - responsive_image.styles.4x4_component_media_3_2
+  module:
+    - entity_reference_revisions
+    - link
+    - linkit
+    - name
+    - responsive_image
+    - user
+id: node.person.default
+targetEntityType: node
+bundle: person
+mode: default
+content:
+  field_name:
+    weight: 1
+    label: hidden
+    settings:
+      format: default
+      markup: false
+      output: default
+      multiple: default
+      multiple_delimiter: ', '
+      multiple_and: text
+      multiple_delimiter_precedes_last: never
+      multiple_el_al_min: '3'
+      multiple_el_al_first: '1'
+    third_party_settings: {  }
+    type: name_default
+    region: content
+  field_p_read_more_link:
+    weight: 6
+    label: hidden
+    settings:
+      trim_length: null
+      url_only: false
+      url_plain: false
+      rel: '0'
+      target: '0'
+      linkit_profile: default
+    third_party_settings: {  }
+    type: linkit
+    region: content
+  field_person_components:
+    type: entity_reference_revisions_entity_view
+    weight: 9
+    label: hidden
+    settings:
+      view_mode: default
+      link: ''
+    third_party_settings: {  }
+    region: content
+  field_person_email:
+    weight: 3
+    label: hidden
+    settings: {  }
+    third_party_settings: {  }
+    type: email_mailto
+    region: content
+  field_person_linkedin_url:
+    weight: 7
+    label: hidden
+    settings:
+      trim_length: null
+      url_only: true
+      url_plain: false
+      rel: nofollow
+      target: _blank
+    third_party_settings: {  }
+    type: link
+    region: content
+  field_person_phone:
+    weight: 4
+    label: hidden
+    settings:
+      link_to_entity: false
+    third_party_settings: {  }
+    type: string
+    region: content
+  field_person_title:
+    weight: 2
+    label: hidden
+    settings:
+      link_to_entity: false
+    third_party_settings: {  }
+    type: string
+    region: content
+  field_person_twitter_url:
+    weight: 8
+    label: hidden
+    settings:
+      trim_length: null
+      url_only: true
+      url_plain: false
+      rel: nofollow
+      target: _blank
+    third_party_settings: {  }
+    type: link
+    region: content
+  field_profile_photo:
+    weight: 0
+    label: hidden
+    settings:
+      responsive_image_style: 4x4_component_media_3_2
+      image_link: ''
+    third_party_settings: {  }
+    type: responsive_image
+    region: content
+hidden:
+  field_display_options: true
+  links: true

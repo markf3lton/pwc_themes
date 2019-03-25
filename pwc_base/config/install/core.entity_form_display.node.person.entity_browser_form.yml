@@ -1,0 +1,254 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - core.entity_form_mode.node.entity_browser_form
+    - field.field.node.person.field_display_date
+    - field.field.node.person.field_display_options
+    - field.field.node.person.field_landing_page
+    - field.field.node.person.field_name
+    - field.field.node.person.field_p_read_more_link
+    - field.field.node.person.field_person_components
+    - field.field.node.person.field_person_email
+    - field.field.node.person.field_person_linkedin_url
+    - field.field.node.person.field_person_phone
+    - field.field.node.person.field_person_title
+    - field.field.node.person.field_person_twitter_url
+    - field.field.node.person.field_profile_photo
+    - field.field.node.person.field_tags
+    - image.style.thumbnail
+    - node.type.person
+  module:
+    - datetime
+    - field_group
+    - image_widget_crop
+    - link
+    - linkit_segue
+    - name
+    - paragraphs
+third_party_settings:
+  field_group:
+    group_person_information:
+      children:
+        - field_person_title
+        - field_person_email
+        - field_person_phone
+      parent_name: ''
+      weight: 6
+      format_type: tab
+      format_settings:
+        id: ''
+        classes: ''
+        formatter: closed
+        description: ''
+        required_fields: true
+      label: 'PERSON INFORMATION'
+    group_card_teaser:
+      children:
+        - field_p_read_more_link
+      parent_name: ''
+      weight: 7
+      format_type: tab
+      format_settings:
+        id: ''
+        classes: ''
+        formatter: closed
+        description: ''
+        required_fields: true
+      label: CARD/TEASER
+    group_body_component:
+      children:
+        - field_person_components
+      parent_name: ''
+      weight: 8
+      format_type: tab
+      format_settings:
+        label: ' Content Component'
+        formatter: closed
+        description: ''
+        required_fields: true
+        id: ''
+        classes: ''
+      label: ' Content Component'
+    group_social_sharing:
+      children:
+        - field_person_linkedin_url
+        - field_person_twitter_url
+      parent_name: ''
+      weight: 9
+      format_type: tab
+      format_settings:
+        id: ''
+        classes: ''
+        formatter: closed
+        description: ''
+        required_fields: true
+      label: 'SOCIAL SHARING'
+    group_name:
+      children:
+        - field_name
+      parent_name: ''
+      weight: 5
+      format_type: tab
+      format_settings:
+        id: ''
+        classes: ''
+        formatter: closed
+        description: ''
+        required_fields: true
+      label: NAME
+    group_taxonomy:
+      children:
+        - field_tags
+      parent_name: ''
+      weight: 11
+      format_type: tab
+      format_settings:
+        id: ''
+        classes: ''
+        formatter: closed
+        description: ''
+        required_fields: true
+      label: Taxonomy
+id: node.person.entity_browser_form
+targetEntityType: node
+bundle: person
+mode: entity_browser_form
+content:
+  field_display_date:
+    type: datetime_default
+    weight: 3
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_display_options:
+    type: options_buttons
+    weight: 1
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_landing_page:
+    type: entity_reference_autocomplete
+    weight: 2
+    region: content
+    settings:
+      match_operator: CONTAINS
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+  field_name:
+    weight: 2
+    settings: {  }
+    third_party_settings: {  }
+    type: name_default
+    region: content
+  field_p_read_more_link:
+    type: segue_field_widget
+    weight: 4
+    region: content
+    settings:
+      placeholder_url: ''
+      placeholder_title: ''
+      linkit_profile: default
+      classes: "self;Link to this page (Leave URL blank)\nexternal;External\nsecure;Secure (restricted)\nhas-video;Has Video?"
+    third_party_settings: {  }
+  field_person_components:
+    type: entity_reference_paragraphs
+    weight: 6
+    region: content
+    settings:
+      title: Paragraph
+      title_plural: Paragraphs
+      edit_mode: open
+      add_mode: dropdown
+      form_display_mode: default
+      default_paragraph_type: ''
+    third_party_settings: {  }
+  field_person_email:
+    type: email_default
+    weight: 4
+    region: content
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+  field_person_linkedin_url:
+    type: link_default
+    weight: 6
+    settings:
+      placeholder_url: ''
+      placeholder_title: ''
+    third_party_settings: {  }
+    region: content
+  field_person_phone:
+    type: string_textfield
+    weight: 5
+    region: content
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+  field_person_title:
+    type: string_textfield
+    weight: 3
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    region: content
+  field_person_twitter_url:
+    type: link_default
+    weight: 7
+    settings:
+      placeholder_url: ''
+      placeholder_title: ''
+    third_party_settings: {  }
+    region: content
+  field_profile_photo:
+    type: image_widget_crop
+    weight: 4
+    settings:
+      show_default_crop: true
+      warn_multiple_usages: true
+      preview_image_style: thumbnail
+      crop_preview_image_style: crop_thumbnail
+      crop_list:
+        - crop_2_3
+        - crop_3_2
+      progress_indicator: throbber
+      show_crop_area: false
+      crop_types_required: {  }
+    third_party_settings: {  }
+    region: content
+  field_tags:
+    type: options_select
+    weight: 11
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  status:
+    type: boolean_checkbox
+    settings:
+      display_label: true
+    weight: 12
+    region: content
+    third_party_settings: {  }
+  title:
+    type: string_textfield
+    weight: 0
+    region: content
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+  url_redirects:
+    weight: 10
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+hidden:
+  created: true
+  path: true
+  promote: true
+  sticky: true
+  uid: true

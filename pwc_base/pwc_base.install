@@ -1,0 +1,1335 @@
+<?php
+
+/**
+ * @file
+ * Install, update and uninstall functions for pwc_base install profile.
+ */
+
+use Drupal\user\Entity\User;
+use Drupal\user\RoleInterface;
+use Drupal\shortcut\Entity\Shortcut;
+use Drupal\pwc_demo\GenerateDemoContent;
+use Symfony\Component\Yaml\Yaml;
+use Drupal\field\Entity\FieldConfig;
+
+/**
+ * Implements hook_update_dependencies().
+ */
+function pwc_base_update_dependencies() {
+  // Indicate that the pwc_base_update_8006() must run after
+  // pwc_paragraphs_update_8004().
+  $dependencies['pwc_base'][8006] = [
+    'pwc_paragraphs' => 8004,
+  ];
+  // Indicate that the pwc_base_update_8012() must run after
+  // pwc_core_update_8003(), pwc_media_update_8006() and
+  // pwc_person_update_8004().
+  $dependencies['pwc_base'][8012] = [
+    'pwc_core' => 8003,
+    'pwc_media' => 8006,
+    'pwc_person' => 8004,
+  ];
+  $dependencies['media_entity'][8200] = [
+    'pwc_base' => 8062,
+  ];
+  return $dependencies;
+}
+
+/**
+ * Implements hook_install().
+ *
+ * Perform actions to set up the site for this profile.
+ *
+ * @see system_install()
+ */
+function pwc_base_install() {
+  // Set front page to "node".
+  \Drupal::configFactory()->getEditable('system.site')->set('page.front', '/node')->save(TRUE);
+
+  // Assign user 1 the "administrator" role.
+  $user = User::load(1);
+  $user->roles[] = 'administrator';
+  $user->save();
+
+  // We install some menu links, so we have to rebuild the router, to ensure the
+  // menu links are valid.
+  \Drupal::service('router.builder')->rebuildIfNeeded();
+
+  // Grant authenticated users to access content, view media and use shortcuts.
+  user_role_grant_permissions(RoleInterface::AUTHENTICATED_ID, [
+    'access content',
+    'view media',
+    'access shortcuts',
+  ]);
+  // Grant anonymous users to access content and view media.
+  user_role_grant_permissions(RoleInterface::ANONYMOUS_ID, [
+    'access content',
+    'view media',
+  ]);
+
+  // Populate the default shortcut set.
+  $shortcut = Shortcut::create([
+    'shortcut_set' => 'default',
+    'title' => t('Add media'),
+    'weight' => -21,
+    'link' => ['uri' => 'internal:/media/add'],
+  ]);
+  $shortcut->save();
+  $shortcut = Shortcut::create([
+    'shortcut_set' => 'default',
+    'title' => t('Add content'),
+    'weight' => -20,
+    'link' => ['uri' => 'internal:/node/add'],
+  ]);
+  $shortcut->save();
+  $shortcut = Shortcut::create([
+    'shortcut_set' => 'default',
+    'title' => t('All content'),
+    'weight' => -19,
+    'link' => ['uri' => 'internal:/admin/content'],
+  ]);
+  $shortcut->save();
+  $shortcut = Shortcut::create([
+    'shortcut_set' => 'default',
+    'title' => t('PWC ASF settings'),
+    'weight' => -18,
+    'link' => ['uri' => 'internal:/admin/config/system/pwc-acsf'],
+  ]);
+  $shortcut->save();
+
+  // Remove core image module's image styles.
+  Drupal::configFactory()->getEditable('image.style.large')->delete();
+  Drupal::configFactory()->getEditable('image.style.medium')->delete();
+
+  // Enable relevant modules.
+  $modules = ['color'];
+  if (isset($_ENV['AH_SITE_ENVIRONMENT'])) {
+    $modules[] = 'acsf_sso';
+  }
+  // Enable developer modules when not in ACSF environment.
+  if (!isset($_ENV['AH_SITE_ENVIRONMENT'])) {
+    $modules[] = 'dblog';
+    $modules[] = 'field_ui';
+    $modules[] = 'devel';
+    $modules[] = 'kint';
+    $modules[] = 'twig_xdebug';
+    $modules[] = 'views_ui';
+  }
+
+  \Drupal::service('module_installer')->install($modules);
+
+  $themes = ['pwc_thunder_admin_theme', 'pwc_base_theme'];
+  \Drupal::service('theme_handler')->install($themes);
+
+  \Drupal::configFactory()
+    ->getEditable('system.theme')
+    ->set('default', 'pwc_base_theme')
+    ->set('admin', 'pwc_thunder_admin_theme')
+    ->save();
+
+  // Ensure that the install profile's theme is used.
+  // @see _drupal_maintenance_theme()
+  \Drupal::service('theme.manager')->resetActiveTheme();
+
+  // Use the admin theme when editing nodes.
+  \Drupal::configFactory()->getEditable('node.settings')->set('use_admin_theme', TRUE)->save(TRUE);
+
+  // Set the value for preventing search engines from indexing content to true.
+  \Drupal::configFactory()->getEditable('pwc_core.settings')
+    ->set('search_engine', TRUE)
+    ->save();
+
+  // Create test user accounts, which are used with pwc_demo.
+  $test_builder = User::create();
+  $test_builder->enforceIsNew();
+  $test_builder->setPassword(user_password());
+  $test_builder->setEmail('site-builder@example.com');
+  $test_builder->setUsername('test-site-builder');
+  $test_builder->addRole('site_builder');
+  $test_builder->activate();
+  $test_builder->save();
+
+  $test_platform_admin = User::create();
+  $test_platform_admin->enforceIsNew();
+  $test_platform_admin->setPassword(user_password());
+  $test_platform_admin->setEmail('platform-administrator@example.com');
+  $test_platform_admin->setUsername('test-platform-administrator');
+  $test_platform_admin->addRole('platform_administrator');
+  $test_platform_admin->activate();
+  $test_platform_admin->save();
+
+  // Dispatch GenerateDemoContent event to generate demo content.
+  $event = new GenerateDemoContent([]);
+  \Drupal::service('event_dispatcher')->dispatch('pwc_demo.generate', $event);
+
+}
+
+/**
+ * PWCSF-999: Update detail and landing page configuration.
+ */
+function pwc_base_update_8001() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'core.entity_form_display.node.detail_page.default',
+    'core.entity_form_display.node.detail_page.entity_browser_form',
+    'core.entity_form_display.node.landing_page.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse($config_path);
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1102: Grant "Landing Page: View revisions" permission.
+ */
+function pwc_base_update_8002() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+
+  // Now, update forms and displays with new field widget and formatter config.
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'user.role.site_builder',
+    'user.role.platform_administrator',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse($config_path);
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-985: Add 'access twitter_feed_media entity browser pages' permission.
+ */
+function pwc_base_update_8003() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+
+  // Now, update forms and displays with new field widget and formatter config.
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'user.role.platform_administrator',
+    'user.role.site_builder',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1081: Update 3 column paragraph on detail & landing page configuration.
+ */
+function pwc_base_update_8004() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'field.field.node.detail_page.field_body_components',
+    'field.field.node.landing_page.field_body_components',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1075: Add person components field.
+ */
+function pwc_base_update_8005() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'field.field.node.person.field_person_components',
+    'core.entity_form_display.node.person.default',
+    'core.entity_view_display.node.person.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-747: Add background_image_breaker paragraph type.
+ */
+function pwc_base_update_8006() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'field.field.node.detail_page.field_body_components',
+    'field.field.node.landing_page.field_body_components',
+    'field.field.node.person.field_person_components',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1180: Add file selection to Read More Link fields.
+ */
+function pwc_base_update_8007() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'core.entity_view_display.node.detail_page.card',
+    'core.entity_view_display.node.detail_page.teaser',
+    'core.entity_view_display.node.event.card',
+    'core.entity_view_display.node.event.teaser',
+    'core.entity_view_display.node.person.default',
+    'core.entity_form_display.node.person.entity_browser_form',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1183: 3:2 Crop person profile photos.
+ */
+function pwc_base_update_8008() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'core.entity_form_display.node.person.default',
+    'core.entity_form_display.node.person.entity_browser_form',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1184: Make display date on detail and events not required.
+ */
+function pwc_base_update_8009() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'field.field.node.detail_page.field_display_date',
+    'field.field.node.event.field_display_date',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1180 & PWCSF-1238: Update event form configuration.
+ */
+function pwc_base_update_8010() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'core.entity_view_display.node.event.default',
+    'core.entity_form_display.node.event.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1229: Enable pwc_webform and update associated configuration.
+ */
+function pwc_base_update_8011() {
+  \Drupal::service('module_installer')->install(['pwc_webform']);
+
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'user.role.site_builder',
+    'user.role.platform_administrator',
+    'field.field.node.detail_page.field_body_components',
+    'field.field.node.landing_page.field_body_components',
+    'field.field.node.person.field_person_components',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    \Drupal::configFactory()->getEditable($config)->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1253: Updating the configurations for person content type.
+ */
+function pwc_base_update_8012() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'core.entity_form_display.node.person.default',
+    'core.entity_form_display.node.person.entity_browser_form',
+    'core.entity_view_display.node.person.default',
+    'core.entity_view_display.node.person.landscape_card',
+    'core.entity_view_display.node.person.landscape_full',
+    'core.entity_view_display.node.person.portrait_card',
+    'core.entity_view_display.node.person.portrait_full',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    \Drupal::configFactory()->getEditable($config)->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1307: Add content_editor user role and test account.
+ */
+function pwc_base_update_8013() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'user.role.content_editor',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    \Drupal::configFactory()->getEditable($config)->setData($data)->save(TRUE);
+  }
+
+  // Add test account.
+  $test_editor = User::create();
+  $test_editor->enforceIsNew();
+  $test_editor->setPassword(user_password());
+  $test_editor->setEmail('content-editor@example.com');
+  $test_editor->setUsername('test-content-editor');
+  $test_editor->addRole('content_editor');
+  $test_editor->activate();
+  $test_editor->save();
+}
+
+/**
+ * PWCSF-1311: Remove teaser mode in landing page content type.
+ */
+function pwc_base_update_8014() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $config = 'core.entity_view_display.node.landing_page.teaser';
+  $config_path = $config_dir . $config . '.yml';
+  $data = Yaml::parse(file_get_contents($config_path));
+  \Drupal::configFactory()->getEditable($config)->setData($data)->save(TRUE);
+}
+
+/**
+ * PWCSF-1316: Event Registration field does not accepting the internal urls.
+ */
+function pwc_base_update_8015() {
+  $module_path = drupal_get_path('module', 'pwc_base');
+  $config_dir = $module_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'core.entity_view_display.node.event.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1307: Update user permissions with roleassign module.
+ */
+function pwc_base_update_8016() {
+  \Drupal::service('module_installer')->install(['roleassign']);
+  $module_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $module_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'roleassign.settings',
+    'user.role.site_builder',
+    'user.role.platform_administrator',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1363: optionally not have the page title displayed.
+ */
+function pwc_base_update_8017() {
+  \Drupal::service('module_installer')->install(['exclude_node_title']);
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'exclude_node_title.settings',
+    'user.role.content_editor',
+    'user.role.platform_administrator',
+    'user.role.site_builder',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1365: fieldgroup sections on a edit page all be collapsed.
+ */
+function pwc_base_update_8018() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'core.entity_form_display.node.detail_page.default',
+    'core.entity_form_display.node.event.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1416: Person content type to be in collapsed field groups.
+ */
+function pwc_base_update_8019() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'core.entity_form_display.node.person.default',
+    'core.entity_form_display.node.person.entity_browser_form',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1414: Event details to be within a field groups.
+ */
+function pwc_base_update_8020() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'core.entity_form_display.node.event.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1430: Remove Legacy field group.
+ */
+function pwc_base_update_8021() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'core.entity_form_display.node.event.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1417: Paragraph components to be collapsed by default.
+ */
+function pwc_base_update_8022() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'core.entity_form_display.paragraph.webform.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1427: Remove Short Bio field from Person.
+ */
+function pwc_base_update_8023() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'core.entity_form_display.node.person.default',
+    'core.entity_form_display.node.person.entity_browser_form',
+    'core.entity_view_display.node.person.default',
+    'core.entity_view_display.node.person.landscape_card',
+    'core.entity_view_display.node.person.landscape_full',
+    'core.entity_view_display.node.person.portrait_card',
+    'core.entity_view_display.node.person.portrait_full',
+    'core.entity_view_display.node.person.card',
+    'core.entity_view_display.node.person.entity_browser_preview',
+    'core.entity_view_display.node.person.teaser',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1415: components field to appear the same in all content types.
+ */
+function pwc_base_update_8024() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'field.field.node.landing_page.field_body_components',
+    'field.field.node.detail_page.field_body_components',
+    'field.field.node.person.field_person_components',
+    'core.entity_form_display.node.person.default',
+    'core.entity_form_display.node.landing_page.default',
+    'core.entity_form_display.node.event.default',
+    'core.entity_form_display.node.detail_page.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1417: Paragraph components to be collapsed by default.
+ */
+function pwc_base_update_8025() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'core.entity_form_display.paragraph.webform.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-761: Adding permissions to access upcoming event paragraph.
+ */
+function pwc_base_update_8026() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'user.role.content_editor',
+    'user.role.platform_administrator',
+    'user.role.site_builder',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1672: Fixing up creating new person content bug.
+ */
+function pwc_base_update_8027() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'core.entity_form_display.node.person.default',
+    'core.entity_form_display.node.person.entity_browser_form',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-761: Adding upcoming event paragraph type to landing pages.
+ */
+function pwc_base_update_8028() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  // Omit .yml file extension, so we can get config object by name below.
+  $configs = [
+    'field.field.node.landing_page.field_body_components',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1717: Link author in details page default view..
+ */
+function pwc_base_update_8029() {
+  $module_path = drupal_get_path('module', 'pwc_base');
+  $config_dir = $module_path . '/config/install/';
+
+  $configs = [
+    'core.entity_view_display.node.detail_page.default',
+  ];
+
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1758: Update permissions to support Access Tag editing.
+ */
+function pwc_base_update_8030() {
+  $module_path = drupal_get_path('module', 'pwc_base');
+  $config_dir = $module_path . '/config/install/';
+
+  $configs = [
+    'user.role.content_editor',
+    'user.role.platform_administrator',
+    'user.role.site_builder',
+  ];
+
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1758: Update permissions for responsive preview module.
+ */
+function pwc_base_update_8031() {
+  $module_path = drupal_get_path('module', 'pwc_base');
+  $config_dir = $module_path . '/config/install/';
+
+  $configs = [
+    'user.role.content_editor',
+    'user.role.platform_administrator',
+    'user.role.site_builder',
+  ];
+
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1665: Update config for paragraph fields to use a preview view.
+ */
+function pwc_base_update_8032() {
+  $module_path = drupal_get_path('module', 'pwc_base');
+  $config_dir = $module_path . '/config/install/';
+  $configs = [
+    'core.entity_form_display.node.detail_page.default',
+    'core.entity_form_display.node.event.default',
+    'core.entity_form_display.node.landing_page.default',
+    'core.entity_form_display.node.person.default',
+  ];
+
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1721: update permission to access entity clone module.
+ */
+function pwc_base_update_8033() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'user.role.content_editor',
+    'user.role.platform_administrator',
+    'user.role.site_builder',
+  ];
+
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1807: In content, unpublished contents are not displaying.
+ */
+function pwc_base_update_8034() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'user.role.content_editor',
+    'user.role.platform_administrator',
+    'user.role.site_builder',
+  ];
+
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1806: Fixing up permission issue with document media.
+ */
+function pwc_base_update_8035() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'user.role.content_editor',
+    'user.role.platform_administrator',
+    'user.role.site_builder',
+  ];
+
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-22335-1037: Adding permissions to access video entity browser.
+ */
+function pwc_base_update_8036() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'user.role.content_editor',
+    'user.role.platform_administrator',
+    'user.role.site_builder',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-26205-1820: Creating new partner role.
+ */
+function pwc_base_update_8039() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'user.role.partners',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1827: updating the configurations for BBC.
+ */
+function pwc_base_update_8040() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'field.field.node.detail_page.field_body_components',
+    'field.field.node.landing_page.field_body_components',
+    'field.field.node.person.field_person_components',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1824: updating the configurations for NBB.
+ */
+function pwc_base_update_8041() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'field.field.node.detail_page.field_body_components',
+    'field.field.node.landing_page.field_body_components',
+    'field.field.node.person.field_person_components',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-26363: updating configurations for Narrow image slider.
+ */
+function pwc_base_update_8042() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'field.field.node.detail_page.field_body_components',
+    'field.field.node.landing_page.field_body_components',
+    'field.field.node.person.field_person_components',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-25768: Thunder Theme Rollout.
+ */
+function pwc_base_update_8043() {
+  $themes = array_keys(system_list('theme'));
+  if (in_array('pwc_admin_theme', $themes)) {
+    \Drupal::service('theme_handler')->install(['pwc_thunder_admin_theme']);
+
+    \Drupal::configFactory()
+      ->getEditable('system.theme')
+      ->set('admin', 'pwc_thunder_admin_theme')
+      ->save();
+
+    \Drupal::service('theme_handler')->uninstall(['pwc_admin_theme', 'adminimal_theme']);
+  }
+}
+
+/**
+ * PWCSF-25768: Revert Thunder Theme Rollout.
+ */
+function pwc_base_update_8044() {
+  $themes = array_keys(system_list('theme'));
+  if (in_array('pwc_admin_theme', $themes)) {
+    \Drupal::service('theme_handler')->install(['pwc_admin_theme']);
+
+    \Drupal::configFactory()
+      ->getEditable('system.theme')
+      ->set('admin', 'pwc_admin_theme')
+      ->save();
+
+    \Drupal::service('theme_handler')->uninstall(['pwc_thunder_admin_theme', 'thunder_admin']);
+  }
+}
+
+/**
+ * PWCSF-26236: Fixing edit button for referenced detail content.
+ */
+function pwc_base_update_8045() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'core.entity_form_display.node.detail_page.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1871-27386: Left alignment for event body components.
+ */
+function pwc_base_update_8046() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'core.entity_form_display.node.event.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-25768: Thunder Theme Rollout.
+ */
+function pwc_base_update_8047() {
+  $themes = array_keys(system_list('theme'));
+  if (in_array('pwc_admin_theme', $themes)) {
+    \Drupal::service('theme_handler')->install(['pwc_thunder_admin_theme']);
+
+    \Drupal::configFactory()
+      ->getEditable('system.theme')
+      ->set('admin', 'pwc_thunder_admin_theme')
+      ->save();
+
+    \Drupal::service('theme_handler')->uninstall(['pwc_admin_theme', 'adminimal_theme']);
+  }
+}
+
+/**
+ * PWCSF-27384: Fixing edit mode for paragraphs.
+ */
+function pwc_base_update_8048() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'core.entity_form_display.node.detail_page.default',
+    'core.entity_form_display.node.event.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1362-22414: Add banner component to details page.
+ */
+function pwc_base_update_8049() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'field.field.node.detail_page.field_body_components',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1951: Add landing page teaser view mode.
+ */
+function pwc_base_update_8050() {
+  $module_path = drupal_get_path('module', 'pwc_core_types');
+  $config_dir = $module_path . '/config/install/';
+
+  $field_configs = [
+    'field.field.node.landing_page.field_read_more_link',
+    'field.field.node.landing_page.field_short_description',
+    'field.field.node.landing_page.field_thumbnail_image',
+  ];
+
+  foreach ($field_configs as $field_config) {
+    $yml = Yaml::parse(file_get_contents($config_dir . $field_config . '.yml'));
+    if (!FieldConfig::loadByName($yml['entity_type'], $yml['bundle'], $yml['field_name'])) {
+      FieldConfig::create($yml)->save();
+    }
+  }
+
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'core.entity_form_display.node.landing_page.default',
+    'core.entity_view_display.node.landing_page.teaser',
+  ];
+
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1945: Enable pwc_commands.
+ */
+function pwc_base_update_8051() {
+  \Drupal::service('module_installer')->install(['pwc_commands']);
+}
+
+/**
+ * PWCSF-1209: Import config actions before next update.
+ */
+function pwc_base_update_8052() {
+  \Drupal::service('config_actions')->importAction('pwc_base');
+}
+
+/**
+ * PWCSF-1986: Import config actions before next update.
+ */
+function pwc_base_update_8053() {
+  \Drupal::service('config_actions')->importAction('pwc_base');
+}
+
+/**
+ * PWCSF-1987: Update permissions for tag terms.
+ */
+function pwc_base_update_8054() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'user.role.content_editor',
+    'user.role.platform_administrator',
+    'user.role.site_builder',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-1936: Import config actions before next update.
+ */
+function pwc_base_update_8055() {
+  \Drupal::service('config_actions')->importAction('pwc_base');
+}
+
+/**
+ * PWCSF-2005: Import config actions.
+ */
+function pwc_base_update_8056() {
+  \Drupal::service('config_actions')->importAction('pwc_base');
+}
+
+/**
+ * PWCSF-2012: Update permissions for tag terms.
+ */
+function pwc_base_update_8057() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'user.role.content_editor',
+    'user.role.platform_administrator',
+    'user.role.site_builder',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-2018: Enable simple_sitemap.
+ */
+function pwc_base_update_8058() {
+  \Drupal::service('module_installer')->install(['simple_sitemap']);
+}
+
+/**
+ * PWCSF-2018: Import simple_sitemap configs.
+ */
+function pwc_base_update_8059() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'simple_sitemap.custom_links.default',
+    'simple_sitemap.settings',
+    'simple_sitemap.variants.default_hreflang',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+
+  \Drupal::service('config_actions')->importAction('pwc_base');
+}
+
+/**
+ * PWCSF-2018: Display date avialable for content types.
+ */
+function pwc_base_update_8060() {
+  \Drupal::service('config_actions')->importAction('pwc_base');
+}
+
+/**
+ * PWCSF-1887: Author Section by Default Collapsed in Detail Page Contant Edit.
+ */
+function pwc_base_update_8061() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'core.entity_form_display.node.detail_page.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-Media-core: Clearing Cache.
+ */
+function pwc_base_update_8062() {
+  drupal_flush_all_caches();
+}
+
+/**
+ * PWCSF-35388: Adding image thumbnails to card/Teaser.
+ */
+function pwc_base_update_8063() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'core.entity_form_display.node.detail_page.default',
+    'core.entity_form_display.node.landing_page.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-2003: Update permissions for site alert.
+ */
+function pwc_base_update_8064() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'user.role.content_editor',
+    'user.role.platform_administrator',
+    'user.role.site_builder',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-2095: Running body components update hook.
+ */
+function pwc_base_update_8065() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'field.field.node.detail_page.field_body_components',
+    'field.field.node.landing_page.field_body_components',
+    'field.field.node.person.field_person_components',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-22389: Restricting Email share bodytext field allowing -ve value.
+ */
+function pwc_base_update_8066() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'core.entity_form_display.node.detail_page.default',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}
+
+/**
+ * PWCSF-2131-36755: Changing person UI for entity browser.
+ */
+function pwc_base_update_8067() {
+  $profile_path = drupal_get_path('profile', 'pwc_base');
+  $config_dir = $profile_path . '/config/install/';
+  $configs = [
+    'core.entity_form_display.node.person.entity_browser_form',
+  ];
+  foreach ($configs as $config) {
+    $config_path = $config_dir . $config . '.yml';
+    $data = Yaml::parse(file_get_contents($config_path));
+    $config_obj = \Drupal::configFactory()->getEditable($config);
+    $config_obj->setData($data)->save(TRUE);
+  }
+}

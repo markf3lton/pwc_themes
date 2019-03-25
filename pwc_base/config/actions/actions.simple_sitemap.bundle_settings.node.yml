@@ -1,0 +1,17 @@
+actions:
+  field_instance:
+    source: "simple_sitemap.bundle_settings.default.node.yml"
+    dest: "simple_sitemap.bundle_settings.default.node.@bundle@"
+    actions:
+      detail_page:
+        replace:
+          "@bundle@": detail_page
+      event:
+        replace:
+          "@bundle@": event
+      landing_page:
+        replace:
+          "@bundle@": landing_page
+      person:
+        replace:
+          "@bundle@": person

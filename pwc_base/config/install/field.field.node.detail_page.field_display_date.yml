@@ -1,0 +1,20 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - field.storage.node.field_display_date
+    - node.type.detail_page
+  module:
+    - datetime
+id: node.detail_page.field_display_date
+field_name: field_display_date
+entity_type: node
+bundle: detail_page
+label: 'Display Date'
+description: 'Select a date for display with this content. The latest content page will display content with a display date within the last 30 days.'
+required: false
+translatable: false
+default_value: {  }
+default_value_callback: ''
+settings: {  }
+field_type: datetime

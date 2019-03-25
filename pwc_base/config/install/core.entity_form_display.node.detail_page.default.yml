@@ -1,0 +1,414 @@
+langcode: en
+status: true
+dependencies:
+  config:
+    - entity_browser.browser.image_media_entity_browser
+    - field.field.node.detail_page.field_author
+    - field.field.node.detail_page.field_body_components
+    - field.field.node.detail_page.field_email_share_body
+    - field.field.node.detail_page.field_email_share_subject
+    - field.field.node.detail_page.field_enable_email_share
+    - field.field.node.detail_page.field_enable_linkedin_share
+    - field.field.node.detail_page.field_enable_twitter_share
+    - field.field.node.detail_page.field_landing_page
+    - field.field.node.detail_page.field_linkedin_share_summary
+    - field.field.node.detail_page.field_linkedin_share_title
+    - field.field.node.detail_page.field_linkedin_share_url
+    - field.field.node.detail_page.field_read_more_link
+    - field.field.node.detail_page.field_short_description
+    - field.field.node.detail_page.field_thumbnail_image
+    - field.field.node.detail_page.field_twitter_share_tweet_text
+    - node.type.detail_page
+  module:
+    - conditional_fields
+    - datetime
+    - entity_browser
+    - field_group
+    - link
+    - linkit_segue
+    - paragraphs
+    - path
+third_party_settings:
+  field_group:
+    group_card_teaser:
+      children:
+        - field_thumbnail_image
+        - field_short_description
+        - field_read_more_link
+      parent_name: ''
+      weight: 4
+      format_type: tab
+      format_settings:
+        id: ''
+        classes: ''
+        formatter: closed
+        description: ''
+        required_fields: true
+      label: Card/Teaser
+    group_components:
+      children:
+        - field_body_components
+      parent_name: ''
+      weight: 5
+      format_type: tab
+      format_settings:
+        label: 'Content Components'
+        formatter: closed
+        description: ''
+        required_fields: true
+        id: ''
+        classes: ''
+      label: 'Content Components'
+    group_social_sharing:
+      children:
+        - field_enable_twitter_share
+        - field_twitter_share_tweet_text
+        - field_enable_linkedin_share
+        - field_linkedin_share_title
+        - field_linkedin_share_summary
+        - field_linkedin_share_url
+        - field_enable_email_share
+        - field_email_share_subject
+        - field_email_share_body
+      parent_name: ''
+      weight: 9
+      format_type: tab
+      format_settings:
+        id: ''
+        classes: ''
+        formatter: closed
+        description: ''
+        required_fields: true
+      label: 'Social Sharing'
+    group_author:   
+      children:   
+         - field_author    
+      parent_name: ''   
+      weight: 3   
+      format_type: tab    
+      format_settings:    
+        id: ''    
+        classes: ''   
+        formatter: closed   
+        description: ''   
+        required_fields: true   
+      label: Author
+    group_taxonomy:
+      children:
+        - field_tags
+      parent_name: ''
+      weight: 20
+      format_type: tab
+      format_settings:
+        id: ''
+        classes: ''
+        formatter: closed
+        description: ''
+        required_fields: true
+      label: Taxonomy
+id: node.detail_page.default
+targetEntityType: node
+bundle: detail_page
+mode: default
+content:
+  created:
+    type: datetime_timestamp
+    weight: 7
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  field_author:
+    weight: 3
+    settings:
+      entity_browser: person_browser
+      field_widget_display: rendered_entity
+      field_widget_edit: true
+      field_widget_remove: true
+      open: false
+      selection_mode: selection_append
+      field_widget_display_settings:
+        view_mode: entity_browser_preview
+      field_widget_replace: false
+    third_party_settings: {  }
+    type: entity_browser_entity_reference
+    region: content
+  field_body_components:
+    weight: 3
+    settings:
+      title: Component
+      title_plural: Component
+      edit_mode: preview
+      add_mode: dropdown
+      form_display_mode: default
+      default_paragraph_type: _none
+    third_party_settings: {  }
+    type: entity_reference_paragraphs
+    region: content
+  field_display_date:
+    weight: 2
+    settings: {  }
+    third_party_settings: {  }
+    type: datetime_default
+    region: content
+  field_email_share_body:
+    weight: 38
+    settings:
+      rows: 2
+      placeholder: ''
+    third_party_settings:
+      maxlength:
+        maxlength_js: 1329
+        maxlength_js_label: 'Email body limited to @limit characters, remaining: <strong>@remaining</strong>'
+        maxlength_js_enforce: true
+        maxlength_js_truncate_html: true
+      conditional_fields:
+        3c89f903-5894-4cc8-958b-12981d6108ef:
+          dependee: field_enable_email_share
+          settings:
+            state: visible
+            condition: checked
+            grouping: AND
+            values_set: 1
+            value: ''
+            values: {  }
+            value_form:
+              value: false
+            effect: show
+            effect_options: {  }
+            selector: ''
+          entity_type: node
+          bundle: detail_page
+    type: string_textarea
+    region: content
+  field_email_share_subject:
+    weight: 37
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings:
+      conditional_fields:
+        020d07ad-7269-4509-a344-6667397bc311:
+          dependee: field_enable_email_share
+          settings:
+            state: visible
+            condition: checked
+            grouping: AND
+            values_set: 1
+            value: ''
+            values: {  }
+            value_form:
+              value: false
+            effect: show
+            effect_options: {  }
+            selector: ''
+          entity_type: node
+          bundle: detail_page
+    type: string_textfield
+    region: content
+  field_enable_email_share:
+    weight: 36
+    settings:
+      display_label: true
+    third_party_settings: {  }
+    type: boolean_checkbox
+    region: content
+  field_enable_linkedin_share:
+    weight: 32
+    settings:
+      display_label: true
+    third_party_settings: {  }
+    type: boolean_checkbox
+    region: content
+  field_enable_twitter_share:
+    weight: 30
+    settings:
+      display_label: true
+    third_party_settings: {  }
+    type: boolean_checkbox
+    region: content
+  field_landing_page:
+    weight: 1
+    settings:
+      match_operator: CONTAINS
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+    type: entity_reference_autocomplete
+    region: content
+  field_linkedin_share_summary:
+    weight: 34
+    settings:
+      rows: 2
+      placeholder: ''
+    third_party_settings:
+      conditional_fields:
+        d2a90e1c-8cd7-4517-91cc-05a4516f7f8d:
+          dependee: field_enable_linkedin_share
+          settings:
+            state: visible
+            condition: checked
+            grouping: AND
+            values_set: 1
+            value: ''
+            values: {  }
+            value_form:
+              value: false
+            effect: show
+            effect_options: {  }
+            selector: ''
+          entity_type: node
+          bundle: detail_page
+    type: string_textarea
+    region: content
+  field_linkedin_share_title:
+    weight: 33
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings:
+      conditional_fields:
+        c9f8ef9a-74c1-49d2-a02c-64f6876cbca1:
+          dependee: field_enable_linkedin_share
+          settings:
+            state: visible
+            condition: checked
+            grouping: AND
+            values_set: 1
+            value: ''
+            values: {  }
+            value_form:
+              value: false
+            effect: show
+            effect_options: {  }
+            selector: ''
+          entity_type: node
+          bundle: detail_page
+    type: string_textfield
+    region: content
+  field_linkedin_share_url:
+    weight: 35
+    settings:
+      placeholder_url: ''
+      placeholder_title: ''
+    third_party_settings:
+      conditional_fields:
+        13d353d4-0d3b-4404-905a-9b9a1f6063d1:
+          dependee: field_enable_linkedin_share
+          settings:
+            state: visible
+            condition: checked
+            grouping: AND
+            values_set: 1
+            value: ''
+            values: {  }
+            value_form:
+              value: false
+            effect: show
+            effect_options: {  }
+            selector: ''
+          entity_type: node
+          bundle: detail_page
+    type: link_default
+    region: content
+  field_read_more_link:
+    weight: 4
+    settings:
+      placeholder_url: ''
+      placeholder_title: ''
+      linkit_profile: default
+      classes: "self;Link to this page (Leave URL blank)\nexternal;External\nsecure;Secure (restricted)"
+    third_party_settings: {  }
+    type: segue_field_widget
+    region: content
+  field_short_description:
+    weight: 3
+    settings:
+      rows: 5
+      placeholder: ''
+    third_party_settings: {  }
+    type: string_textarea
+    region: content
+  field_tags:
+    weight: 10
+    settings: {  }
+    third_party_settings: {  }
+    type: options_select
+    region: content
+  field_thumbnail_image:
+    weight: 2
+    settings:
+      entity_browser: image_media_entity_browser
+      field_widget_display: rendered_entity
+      field_widget_edit: true
+      field_widget_remove: true
+      open: true
+      selection_mode: selection_prepend
+      field_widget_display_settings:
+        view_mode: entity_browser_preview
+      field_widget_replace: false
+    third_party_settings: {  }
+    type: entity_browser_entity_reference
+    region: content
+  field_twitter_share_tweet_text:
+    weight: 31
+    settings:
+      rows: 2
+      placeholder: ''
+    third_party_settings:
+      conditional_fields:
+        751f63ae-d5fd-4b3e-bebf-80446387c209:
+          dependee: field_enable_twitter_share
+          settings:
+            state: visible
+            condition: checked
+            grouping: AND
+            values_set: 1
+            value: ''
+            values: {  }
+            value_form:
+              value: false
+            effect: show
+            effect_options: {  }
+            selector: ''
+          entity_type: node
+          bundle: detail_page
+    type: string_textarea
+    region: content
+  path:
+    type: path
+    weight: 8
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+  status:
+    type: boolean_checkbox
+    settings:
+      display_label: true
+    weight: 120
+    region: content
+    third_party_settings: {  }
+  title:
+    type: string_textfield
+    weight: 0
+    region: content
+    settings:
+      size: 60
+      placeholder: ''
+    third_party_settings: {  }
+  uid:
+    type: entity_reference_autocomplete
+    weight: 6
+    settings:
+      match_operator: CONTAINS
+      size: 60
+      placeholder: ''
+    region: content
+    third_party_settings: {  }
+  url_redirects:
+    weight: 50
+    region: content
+    settings: {  }
+    third_party_settings: {  }
+hidden:
+  promote: true
+  sticky: true
